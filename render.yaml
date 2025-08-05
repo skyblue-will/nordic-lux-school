@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: nordic-lux-school
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    region: oregon
+    plan: free
+    autoDeploy: true
