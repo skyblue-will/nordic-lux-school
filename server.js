@@ -30,7 +30,15 @@ app.get('/', (req, res) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>The School of Nordic Lux™</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&display=swap');
+        
+        :root {
+          --primary: #0a0a0a;
+          --accent: #ff3e00;
+          --bg: #fefefe;
+          --glass: rgba(255, 255, 255, 0.1);
+          --shadow: rgba(0, 0, 0, 0.08);
+        }
         
         * {
           margin: 0;
@@ -39,10 +47,33 @@ app.get('/', (req, res) => {
         }
         
         body {
-          font-family: 'Poppins', sans-serif;
-          background: #fafafa;
-          color: #2c2c2c;
+          font-family: 'Space Grotesk', sans-serif;
+          background: var(--bg);
+          color: var(--primary);
           line-height: 1.6;
+          overflow-x: hidden;
+        }
+        
+        /* Glassmorphism background */
+        body::before {
+          content: '';
+          position: fixed;
+          top: -50%;
+          left: -50%;
+          width: 200%;
+          height: 200%;
+          background: 
+            radial-gradient(circle at 20% 50%, rgba(255, 62, 0, 0.05), transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(0, 0, 0, 0.03), transparent 50%),
+            radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.5), transparent 50%);
+          animation: drift 20s ease-in-out infinite;
+          z-index: -1;
+        }
+        
+        @keyframes drift {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          33% { transform: translate(-100px, -100px) rotate(120deg); }
+          66% { transform: translate(100px, -50px) rotate(240deg); }
         }
         
         .container {
@@ -52,12 +83,22 @@ app.get('/', (req, res) => {
         }
         
         header {
-          background: white;
-          padding: 2rem 0;
-          box-shadow: 0 2px 20px rgba(0,0,0,0.05);
-          position: sticky;
+          background: rgba(254, 254, 254, 0.8);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          padding: 1.5rem 0;
+          box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+          position: fixed;
           top: 0;
-          z-index: 100;
+          left: 0;
+          right: 0;
+          z-index: 1000;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        header.scrolled {
+          padding: 1rem 0;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
         
         nav {
@@ -67,9 +108,18 @@ app.get('/', (req, res) => {
         }
         
         .logo {
-          font-size: 1.8rem;
-          font-weight: 200;
-          letter-spacing: 0.15em;
+          font-size: 1.5rem;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          position: relative;
+        }
+        
+        .logo::after {
+          content: '™';
+          position: absolute;
+          top: -0.2em;
+          font-size: 0.5em;
+          font-weight: 300;
         }
         
         .nav-links {
@@ -85,21 +135,81 @@ app.get('/', (req, res) => {
           transition: opacity 0.3s;
         }
         
-        .nav-links a:hover {
-          opacity: 0.6;
+        .nav-links a {
+          position: relative;
+        }
+        
+        .nav-links a::after {
+          content: '';
+          position: absolute;
+          bottom: -5px;
+          left: 0;
+          width: 0;
+          height: 1px;
+          background: var(--accent);
+          transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .nav-links a:hover::after {
+          width: 100%;
         }
         
         .hero {
-          padding: 8rem 0;
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           text-align: center;
-          background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+          position: relative;
+          background: var(--bg);
+        }
+        
+        .hero::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: 
+            repeating-linear-gradient(
+              90deg,
+              transparent,
+              transparent 100px,
+              rgba(0, 0, 0, 0.02) 100px,
+              rgba(0, 0, 0, 0.02) 101px
+            ),
+            repeating-linear-gradient(
+              0deg,
+              transparent,
+              transparent 100px,
+              rgba(0, 0, 0, 0.02) 100px,
+              rgba(0, 0, 0, 0.02) 101px
+            );
+          z-index: 1;
+        }
+        
+        .hero .container {
+          position: relative;
+          z-index: 2;
         }
         
         h1 {
-          font-size: 4rem;
-          font-weight: 200;
+          font-size: clamp(3rem, 10vw, 7rem);
+          font-weight: 700;
           margin-bottom: 1rem;
-          letter-spacing: 0.1em;
+          letter-spacing: -0.04em;
+          line-height: 0.9;
+          position: relative;
+        }
+        
+        h1 span {
+          display: block;
+          font-size: 0.3em;
+          font-weight: 300;
+          letter-spacing: 0.2em;
+          margin-bottom: 0.5em;
+          opacity: 0.5;
         }
         
         .tagline {
@@ -111,16 +221,38 @@ app.get('/', (req, res) => {
         
         .cta {
           display: inline-block;
-          padding: 1rem 3rem;
-          background: #2c2c2c;
+          padding: 1.2rem 3rem;
+          background: var(--primary);
           color: white;
           text-decoration: none;
-          letter-spacing: 0.1em;
-          transition: transform 0.3s;
+          letter-spacing: 0.05em;
+          font-weight: 400;
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border: 1px solid transparent;
+        }
+        
+        .cta::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: var(--accent);
+          transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: -1;
         }
         
         .cta:hover {
           transform: translateY(-2px);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+          border-color: var(--accent);
+        }
+        
+        .cta:hover::before {
+          left: 0;
         }
         
         .principles {
@@ -149,13 +281,22 @@ app.get('/', (req, res) => {
         
         .principle-number {
           display: inline-block;
-          width: 50px;
-          height: 50px;
-          border: 1px solid #2c2c2c;
-          border-radius: 50%;
-          line-height: 50px;
-          margin-bottom: 1rem;
-          font-weight: 200;
+          width: 60px;
+          height: 60px;
+          background: rgba(255, 62, 0, 0.05);
+          border: 1px solid rgba(255, 62, 0, 0.2);
+          line-height: 60px;
+          margin-bottom: 1.5rem;
+          font-weight: 700;
+          font-size: 1.5rem;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }
+        
+        .principle:hover .principle-number {
+          background: var(--accent);
+          color: white;
+          transform: rotate(45deg);
         }
         
         .principle p {
@@ -191,10 +332,23 @@ app.get('/', (req, res) => {
         .quote {
           font-size: 1.5rem;
           font-style: italic;
-          color: #2c2c2c;
-          margin: 3rem 0;
-          padding: 2rem;
-          border-left: 3px solid #2c2c2c;
+          color: var(--primary);
+          margin: 4rem 0;
+          padding: 2rem 3rem;
+          position: relative;
+          background: rgba(255, 62, 0, 0.02);
+          border-left: 3px solid var(--accent);
+        }
+        
+        .quote::before {
+          content: '"';
+          position: absolute;
+          top: -20px;
+          left: 20px;
+          font-size: 5rem;
+          color: var(--accent);
+          opacity: 0.2;
+          font-family: Georgia, serif;
         }
         
         .quote-author {
@@ -223,18 +377,147 @@ app.get('/', (req, res) => {
           margin-top: 2rem;
         }
         
+        /* Parallax sections */
+        .parallax-wrapper {
+          height: 100vh;
+          overflow-x: hidden;
+          overflow-y: auto;
+          perspective: 1px;
+        }
+        
+        .parallax-layer {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+        }
+        
+        /* Floating elements */
+        .float {
+          position: fixed;
+          width: 200px;
+          height: 200px;
+          background: radial-gradient(circle, rgba(255, 62, 0, 0.1), transparent);
+          border-radius: 50%;
+          filter: blur(40px);
+          animation: float 20s infinite ease-in-out;
+          pointer-events: none;
+          z-index: 0;
+        }
+        
+        .float:nth-child(1) {
+          top: 20%;
+          left: 10%;
+          animation-delay: 0s;
+        }
+        
+        .float:nth-child(2) {
+          top: 60%;
+          right: 10%;
+          animation-delay: 5s;
+        }
+        
+        .float:nth-child(3) {
+          bottom: 20%;
+          left: 50%;
+          animation-delay: 10s;
+        }
+        
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0) translateX(0) scale(1);
+          }
+          33% {
+            transform: translateY(-50px) translateX(50px) scale(1.1);
+          }
+          66% {
+            transform: translateY(50px) translateX(-50px) scale(0.9);
+          }
+        }
+        
+        /* Mobile */
         @media (max-width: 768px) {
           h1 {
-            font-size: 2.5rem;
+            font-size: 3rem;
           }
           
           .nav-links {
             display: none;
           }
+          
+          .principle-grid {
+            grid-template-columns: 1fr;
+          }
         }
       </style>
     </head>
     <body>
+      <!-- Loading screen -->
+      <div id="loader">
+        <div class="loader-content">
+          <div class="loader-text">NORDIC LUX</div>
+          <div class="loader-bar"></div>
+        </div>
+      </div>
+      
+      <style>
+        #loader {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: var(--bg);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: opacity 0.5s, visibility 0.5s;
+        }
+        
+        #loader.loaded {
+          opacity: 0;
+          visibility: hidden;
+        }
+        
+        .loader-text {
+          font-size: 2rem;
+          font-weight: 700;
+          letter-spacing: 0.2em;
+          margin-bottom: 2rem;
+        }
+        
+        .loader-bar {
+          width: 200px;
+          height: 2px;
+          background: rgba(0, 0, 0, 0.1);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .loader-bar::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: var(--accent);
+          animation: loading 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        
+        @keyframes loading {
+          0% { left: -100%; }
+          50% { left: 100%; }
+          100% { left: 100%; }
+        }
+      </style>
+      
+      <!-- Floating elements -->
+      <div class="float"></div>
+      <div class="float"></div>
+      <div class="float"></div>
       <header>
         <nav class="container">
           <div class="logo">NORDIC LUX™</div>
@@ -249,7 +532,7 @@ app.get('/', (req, res) => {
       
       <section class="hero">
         <div class="container">
-          <h1>The School of Nordic Lux</h1>
+          <h1><span>THE SCHOOL OF</span>Nordic Lux</h1>
           <p class="tagline">"Where Minimalism Meets Mysticism"</p>
           <a href="#certification" class="cta">BECOME CERTIFIED</a>
         </div>
@@ -337,9 +620,43 @@ app.get('/', (req, res) => {
           });
         });
         
+        // Header scroll effect
+        let lastScroll = 0;
+        window.addEventListener('scroll', () => {
+          const header = document.querySelector('header');
+          const currentScroll = window.pageYOffset;
+          
+          if (currentScroll > 50) {
+            header.classList.add('scrolled');
+          } else {
+            header.classList.remove('scrolled');
+          }
+          
+          lastScroll = currentScroll;
+        });
+        
+        // Parallax on mouse move
+        document.addEventListener('mousemove', (e) => {
+          const floats = document.querySelectorAll('.float');
+          const x = e.clientX / window.innerWidth;
+          const y = e.clientY / window.innerHeight;
+          
+          floats.forEach((float, index) => {
+            const speed = (index + 1) * 20;
+            float.style.transform = `translate(${x * speed}px, ${y * speed}px)`;
+          });
+        });
+        
         // Random philosophy generator
         console.log("Today's Nordic Lux wisdom: " + 
           principles[Math.floor(Math.random() * principles.length)]);
+        
+        // Hide loader when page loads
+        window.addEventListener('load', () => {
+          setTimeout(() => {
+            document.getElementById('loader').classList.add('loaded');
+          }, 1000);
+        });
       </script>
     </body>
     </html>
