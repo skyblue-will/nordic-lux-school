@@ -1,0 +1,179 @@
+name: Check Render Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'check-logs'
+        type: choice
+        options:
+          - check-logs
+          - check-status
+          - trigger-deploy
+          - get-service-info
+
+jobs:
+  render-logs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Get Service Info
+        id: service_info
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          echo "🔍 Finding service..."
+          
+          # Get all services
+          SERVICES=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services?limit=100")
+          
+          # Find our service
+          SERVICE_INFO=$(echo $SERVICES | jq -r '.[] | select(.service.name == "nordic-lux-school") | .service')
+          
+          if [ -z "$SERVICE_INFO" ]; then
+            echo "❌ Service 'nordic-lux-school' not found!"
+            exit 1
+          fi
+          
+          SERVICE_ID=$(echo $SERVICE_INFO | jq -r '.id')
+          SERVICE_URL=$(echo $SERVICE_INFO | jq -r '.serviceDetails.url // "Not deployed yet"')
+          
+          echo "✅ Found service!"
+          echo "SERVICE_ID=$SERVICE_ID" >> $GITHUB_OUTPUT
+          echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_OUTPUT
+          
+          echo "📊 Service Details:"
+          echo "  • ID: $SERVICE_ID"
+          echo "  • URL: $SERVICE_URL"
+          echo "  • Status: $(echo $SERVICE_INFO | jq -r '.suspended')"
+      
+      - name: Check Service Status
+        if: ${{ github.event.inputs.action == 'check-status' || github.event.inputs.action == 'check-logs' }}
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ steps.service_info.outputs.SERVICE_ID }}
+        run: |
+          echo "📈 Checking service status..."
+          
+          # Get latest deploy
+          DEPLOYS=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5")
+          
+          echo "🚀 Recent Deploys:"
+          echo "$DEPLOYS" | jq -r '.[] | "  • \(.deploy.status) - \(.deploy.createdAt) - Commit: \(.deploy.commit.id[0:7])"'
+          
+          # Get latest deploy details
+          LATEST_DEPLOY=$(echo "$DEPLOYS" | jq -r '.[0].deploy')
+          DEPLOY_ID=$(echo "$LATEST_DEPLOY" | jq -r '.id')
+          DEPLOY_STATUS=$(echo "$LATEST_DEPLOY" | jq -r '.status')
+          
+          echo ""
+          echo "📋 Latest Deploy Details:"
+          echo "  • ID: $DEPLOY_ID"
+          echo "  • Status: $DEPLOY_STATUS"
+          echo "  • Created: $(echo "$LATEST_DEPLOY" | jq -r '.createdAt')"
+          
+          if [ "$DEPLOY_STATUS" = "build_failed" ] || [ "$DEPLOY_STATUS" = "update_failed" ]; then
+            echo "❌ Last deploy failed!"
+          elif [ "$DEPLOY_STATUS" = "live" ]; then
+            echo "✅ Service is live!"
+          else
+            echo "⏳ Deploy status: $DEPLOY_STATUS"
+          fi
+      
+      - name: Get Build Logs
+        if: ${{ github.event.inputs.action == 'check-logs' }}
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ steps.service_info.outputs.SERVICE_ID }}
+        run: |
+          echo "📜 Fetching recent logs..."
+          
+          # Get latest deploy
+          DEPLOYS=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=1")
+          
+          DEPLOY_ID=$(echo "$DEPLOYS" | jq -r '.[0].deploy.id')
+          
+          echo "Getting logs for deploy: $DEPLOY_ID"
+          echo ""
+          echo "=== BUILD LOGS ==="
+          
+          # Note: Render API doesn't provide direct log access
+          # We can only check deploy status and events
+          
+          # Get deploy events
+          EVENTS=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/events?limit=20")
+          
+          echo "Recent Events:"
+          echo "$EVENTS" | jq -r '.[] | "  [\(.event.createdAt)] \(.event.type): \(.event.details.message // .event.details)"' | head -20
+          
+          echo ""
+          echo "💡 To see full logs:"
+          echo "  1. Visit: https://dashboard.render.com/web/$SERVICE_ID/logs"
+          echo "  2. Or check the Events tab in Render dashboard"
+      
+      - name: Trigger New Deploy
+        if: ${{ github.event.inputs.action == 'trigger-deploy' }}
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ steps.service_info.outputs.SERVICE_ID }}
+        run: |
+          echo "🚀 Triggering new deployment..."
+          
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys")
+          
+          DEPLOY_ID=$(echo $DEPLOY_RESPONSE | jq -r '.id')
+          
+          if [ "$DEPLOY_ID" = "null" ]; then
+            echo "❌ Failed to trigger deploy:"
+            echo "$DEPLOY_RESPONSE" | jq '.'
+            exit 1
+          fi
+          
+          echo "✅ Deploy triggered!"
+          echo "  • Deploy ID: $DEPLOY_ID"
+          echo "  • Monitoring deployment..."
+          
+          # Monitor deployment
+          for i in {1..30}; do
+            sleep 10
+            STATUS=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$SERVICE_ID/deploys/$DEPLOY_ID" | \
+              jq -r '.status')
+            
+            echo "  • Status [$i/30]: $STATUS"
+            
+            if [ "$STATUS" = "live" ]; then
+              echo "✅ Deployment successful!"
+              echo "🌐 Service URL: ${{ steps.service_info.outputs.SERVICE_URL }}"
+              break
+            elif [ "$STATUS" = "build_failed" ] || [ "$STATUS" = "update_failed" ]; then
+              echo "❌ Deployment failed!"
+              exit 1
+            fi
+          done
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 📊 Render Service Summary"
+          echo ""
+          echo "**Service:** nordic-lux-school"
+          echo "**Service ID:** ${{ steps.service_info.outputs.SERVICE_ID }}"
+          echo "**URL:** ${{ steps.service_info.outputs.SERVICE_URL }}"
+          echo ""
+          echo "### 🔗 Quick Links"
+          echo "- [Render Dashboard](https://dashboard.render.com/web/${{ steps.service_info.outputs.SERVICE_ID }})"
+          echo "- [Live App](${{ steps.service_info.outputs.SERVICE_URL }})"
+          echo "- [GitHub Repo](https://github.com/${{ github.repository }})"
